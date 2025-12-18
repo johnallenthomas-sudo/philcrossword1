@@ -3,210 +3,305 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Surprise Crossword</title>
+    <title>A Special Puzzle</title>
     <style>
         :root {
             --cell-size: 40px;
-            --highlight: #fff9c4; /* Yellow for special words */
-            --correct: #c8e6c9;
-            --wrong: #ffcdd2;
+            --correct-bg: #d4edda;
+            --wrong-bg: #f8d7da;
+            --selected-bg: #fff3cd;
         }
 
-        body { font-family: sans-serif; display: flex; flex-direction: column; align-items: center; background: #f0f0f0; padding: 20px; }
-        .container { display: flex; flex-wrap: wrap; gap: 20px; justify-content: center; max-width: 1000px; }
-        
-        /* Grid Styles */
-        #grid { 
-            display: grid; 
-            grid-template-columns: repeat(15, var(--cell-size)); 
-            grid-template-rows: repeat(15, var(--cell-size)); 
-            gap: 1px; background: #000; border: 2px solid #000;
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: #f0f2f5;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            margin: 0;
         }
-        .cell { 
-            width: var(--cell-size); height: var(--cell-size); 
-            background: white; position: relative; 
+
+        h1 { color: #1a1a1a; margin-bottom: 10px; }
+
+        #game-container {
+            display: flex;
+            gap: 20px;
+            max-width: 1200px;
+            width: 100%;
+            flex-wrap: wrap;
+            justify-content: center;
         }
-        .cell.black { background: #000; }
+
+        #crossword-board {
+            display: grid;
+            grid-template-columns: repeat(21, var(--cell-size));
+            grid-template-rows: repeat(21, var(--cell-size));
+            background: #000;
+            border: 2px solid #000;
+            user-select: none;
+        }
+
+        .cell {
+            width: var(--cell-size);
+            height: var(--cell-size);
+            background: #000;
+            position: relative;
+            box-sizing: border-box;
+        }
+
+        .cell.active {
+            background: #fff;
+            border: 1px solid #ccc;
+        }
+
         .cell input {
-            width: 100%; height: 100%; border: none; text-align: center;
-            font-size: 18px; font-weight: bold; text-transform: uppercase;
-            background: transparent; outline: none;
-        }
-        .cell.special { background: var(--highlight); }
-        .cell.correct { background: var(--correct) !important; }
-        .cell.wrong { background: var(--wrong) !important; }
-        
-        .clue-number {
-            position: absolute; top: 1px; left: 2px; font-size: 10px; color: #555;
+            width: 100%;
+            height: 100%;
+            border: none;
+            text-align: center;
+            font-size: 18px;
+            font-weight: bold;
+            text-transform: uppercase;
+            background: transparent;
+            outline: none;
         }
 
-        /* Sidebar */
-        .clues { width: 300px; max-height: 600px; overflow-y: auto; background: white; padding: 15px; border-radius: 8px; }
-        .clue-item { cursor: pointer; padding: 4px; border-bottom: 1px solid #eee; }
+        .cell.selected { background: var(--selected-bg); }
+        .cell.correct { background: var(--correct-bg) !important; }
+        .cell.wrong { background: var(--wrong-bg); }
+
+        .clue-number {
+            position: absolute;
+            top: 1px;
+            left: 2px;
+            font-size: 10px;
+            color: #555;
+            pointer-events: none;
+        }
+
+        #clues-container {
+            flex: 1;
+            min-width: 300px;
+            max-height: 840px;
+            overflow-y: auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .clue-list { list-style: none; padding: 0; }
+        .clue-item { 
+            margin-bottom: 8px; 
+            cursor: pointer; 
+            font-size: 14px; 
+            padding: 4px;
+        }
         .clue-item:hover { background: #f0f0f0; }
+        .clue-item.highlight { background: var(--selected-bg); }
 
         #win-message {
-            display: none; margin-top: 20px; padding: 20px;
-            background: #4caf50; color: white; border-radius: 8px;
-            text-align: center; font-size: 1.2rem; font-weight: bold;
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: #fff;
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 0 50px rgba(0,0,0,0.5);
+            text-align: center;
+            z-index: 100;
+            border: 5px solid #28a745;
+            max-width: 80%;
         }
 
-        @media (max-width: 600px) {
-            :root { --cell-size: 24px; }
-            .clues { width: 100%; }
+        @media (max-width: 900px) {
+            :root { --cell-size: 25px; }
+            .cell input { font-size: 12px; }
+            #game-container { flex-direction: column; }
         }
     </style>
 </head>
 <body>
 
-    <h1>A Special Puzzle</h1>
+<h1>The Big Surprise Puzzle</h1>
 
-    <div class="container">
-        <div id="grid"></div>
-        <div class="clues">
-            <h3>Clues</h3>
-            <div><strong>Across</strong><div id="across-clues"></div></div>
-            <br>
-            <div><strong>Down</strong><div id="down-clues"></div></div>
-        </div>
+<div id="game-container">
+    <div id="crossword-board"></div>
+    <div id="clues-container">
+        <h3>Across</h3>
+        <ul id="across-clues" class="clue-list"></ul>
+        <h3>Down</h3>
+        <ul id="down-clues" class="clue-list"></ul>
     </div>
+</div>
 
-    <div id="win-message">
-        You win! We’re going to see Lily Allen in London for a 36 hour whirlwind trip to London on March 21!
-    </div>
+<div id="win-message">
+    <h1 style="color: #28a745;">You win!</h1>
+    <p style="font-size: 20px; line-height: 1.6;">
+        We’re going to see <strong>Lily Allen</strong> in <strong>London</strong> for a 36 hour whirlwind trip to London on <strong>March 21</strong>!
+    </p>
+</div>
 
 <script>
-// Grid data: row, col, char, special(bool), clue#
-const words = [
-    {word: "LILY", r: 0, c: 0, dir: "A", clue: "A type of flower (Key)", special: true, n: 1},
-    {word: "NEWARK", r: 0, c: 5, dir: "A", clue: "A major NJ airport", n: 4},
-    {word: "FRUITLOOPS", r: 2, c: 0, dir: "A", clue: "Colorful breakfast cereal", n: 8},
-    {word: "STAGE", r: 4, c: 0, dir: "A", clue: "Where actors perform", n: 10},
-    {word: "LONDON", r: 4, c: 6, dir: "A", clue: "England's capital (Key)", special: true, n: 11},
-    {word: "GIFT", r: 6, c: 0, dir: "A", clue: "Something given on a birthday", n: 13},
-    {word: "PILOT", r: 6, c: 5, dir: "A", clue: "They fly the plane", n: 14},
-    {word: "MARCH", r: 8, c: 0, dir: "A", clue: "The third month (Key)", special: true, n: 15},
-    {word: "TENNIS", r: 10, c: 0, dir: "A", clue: "Sport played with a racket", n: 16},
-    {word: "ELVES", r: 12, c: 0, dir: "A", clue: "Santa's helpers", n: 17},
-    {word: "ALLENWRENCH", r: 0, c: 0, dir: "D", clue: "L-shaped tool (Key)", special: true, n: 2},
-    {word: "TWENTYONE", r: 0, c: 10, dir: "D", clue: "Three times seven (Key)", special: true, n: 3},
-    {word: "BRITISHAIRWAYS", r: 0, c: 12, dir: "D", clue: "Major UK airline", n: 5},
-    {word: "FRIDAYNIGHT", r: 0, c: 14, dir: "D", clue: "Start of the weekend", n: 6},
-    {word: "KITTYKATPALACE", r: 2, c: 2, dir: "D", clue: "A fancy home for a feline", n: 7},
-    {word: "SLEEPWALKING", r: 2, c: 4, dir: "D", clue: "Moving while dreaming", n: 9},
-    {word: "NONMONOGAMY", r: 4, c: 8, dir: "D", clue: "Relationship style", n: 12},
-    {word: "RUMINATING", r: 5, c: 6, dir: "D", clue: "Thinking deeply or obsessively", n: 14},
-    {word: "RELAPSE", r: 6, c: 0, dir: "D", clue: "A setback in recovery", n: 13},
-    {word: "WESTEND", r: 8, c: 10, dir: "D", clue: "London's theater district", n: 18},
-    {word: "EVENING", r: 8, c: 2, dir: "D", clue: "Time after sunset", n: 19},
-    {word: "SONG", r: 11, c: 4, dir: "D", clue: "A musical composition", n: 20},
-    {word: "MISTLETOE", r: 6, c: 14, dir: "D", clue: "Kiss underneath this", n: 21}
+// Data structure for the words and their positions (x, y, orientation)
+const puzzleData = [
+    { word: "KITTYKATPALACE", x: 0, y: 0, dir: "down", clue: "What probably comes to mind when you're stuck on the F line" },
+    { word: "BRITISHAIRWAYS", x: 0, y: 7, dir: "across", clue: "\"To fly. To serve.\"" },
+    { word: "ALLENWRENCH", x: 13, y: 7, dir: "down", clue: "An L-shaped tool you're shocked I own" },
+    { word: "FRIDAYNIGHT", x: 6, y: 0, dir: "down", clue: "Our equivalent of Saturday night in Tel Aviv" },
+    { word: "NONMONOGAMY", x: 13, y: 15, dir: "across", clue: "People pleasing, perhaps?" },
+    { word: "SLEEPWALKING", x: 4, y: 11, dir: "across", clue: "Romance isn't dead?" },
+    { word: "RUMINATING", x: 15, y: 11, dir: "down", clue: "What a fucking line" },
+    { word: "LONDON", x: 8, y: 3, dir: "across", clue: "They say home is where the heart is, but that's not where his lived." },
+    { word: "FRUITLOOPS", x: 10, y: 1, dir: "down", clue: "Many a 90s child favorite sugary breakfast" },
+    { word: "MARCH", x: 4, y: 11, dir: "down", clue: "Beware the ides" },
+    { word: "RELAPSE", x: 2, y: 17, dir: "across", clue: "Your mother commonly did this when you were a child (unfortunately)" },
+    { word: "TWENTYONE", x: 10, y: 1, dir: "across", clue: "The sum of eleven and ten; a significant age." },
+    { word: "SONG", x: 1, y: 15, dir: "across", clue: "A general way to describe the answer to a handful of clues in this puzzle" },
+    { word: "STAGE", x: 2, y: 17, dir: "down", clue: "Shakespeare said the entire world was one of these" },
+    { word: "LILY", x: 13, y: 8, dir: "across", clue: "After my white dad died people gave us many of these [also in white] to express their sympathy (singular)" },
+    { word: "TENNIS", x: 8, y: 1, dir: "down", clue: "Daddy's home for the first time in weeks..." },
+    { word: "WESTEND", x: 6, y: 0, dir: "across", clue: "You're deranged?" },
+    { word: "NEWARK", x: 8, y: 3, dir: "down", clue: "Confused with New York Penn Station on the NE Cooridor when pronounced too quickly" },
+    { word: "EVENING", x: 0, y: 20, dir: "across", clue: "That time of day betwen the afternoon and the night. Don't overthink it." },
+    { word: "MISTLETOE", x: 18, y: 3, dir: "down", clue: "If you looked up and it was there, we'd for sure makeout" },
+    { word: "GIFT", x: 0, y: 20, dir: "down", clue: "That pillow you found under the christmas tree recently" },
+    { word: "PILOT", x: 18, y: 3, dir: "across", clue: "The person you should actually tell to \"have a safe flight\"" },
+    { word: "ELVES", x: 16, y: 19, dir: "across", clue: "Tiny little lads in the north pole" }
 ];
 
-const gridSize = 15;
-const gridData = Array(gridSize).fill().map(() => Array(gridSize).fill(null));
-let currentDir = "A";
+const boardSize = 21;
+const board = document.getElementById('crossword-board');
+let currentDir = 'across';
 
-// Build Grid Model
-words.forEach(w => {
-    for (let i = 0; i < w.word.length; i++) {
-        let r = w.dir === "A" ? w.r : w.r + i;
-        let c = w.dir === "A" ? w.c + i : w.c;
-        if (!gridData[r][c]) gridData[r][c] = { char: w.word[i], special: false, n: null, id: `cell-${r}-${c}` };
-        if (w.special) gridData[r][c].special = true;
-        if (i === 0) gridData[r][c].n = w.n;
+// Initialize Grid
+const grid = Array(boardSize).fill().map(() => Array(boardSize).fill(null));
+
+puzzleData.forEach((data, index) => {
+    for (let i = 0; i < data.word.length; i++) {
+        let r = data.dir === 'down' ? data.y + i : data.y;
+        let c = data.dir === 'across' ? data.x + i : data.x;
+        if (!grid[r][c]) grid[r][c] = { char: data.word[i], num: null, clues: [] };
+        if (i === 0) grid[r][c].num = index + 1;
+        grid[r][c].clues.push(index);
     }
 });
 
-// Render Grid
-const gridEl = document.getElementById('grid');
-for (let r = 0; r < gridSize; r++) {
-    for (let c = 0; c < gridSize; c++) {
-        const cell = document.createElement('div');
-        cell.className = 'cell' + (gridData[r][c] ? '' : ' black') + (gridData[r][c]?.special ? ' special' : '');
-        if (gridData[r][c]) {
-            if (gridData[r][c].n) cell.innerHTML = `<span class="clue-number">${gridData[r][c].n}</span>`;
+// Create Cells
+for (let r = 0; r < boardSize; r++) {
+    for (let c = 0; c < boardSize; c++) {
+        const cellDiv = document.createElement('div');
+        cellDiv.className = 'cell' + (grid[r][c] ? ' active' : '');
+        if (grid[r][c]) {
+            if (grid[r][c].num) {
+                const numDiv = document.createElement('div');
+                numDiv.className = 'clue-number';
+                numDiv.innerText = grid[r][c].num;
+                cellDiv.appendChild(numDiv);
+            }
             const input = document.createElement('input');
             input.maxLength = 1;
             input.dataset.r = r;
             input.dataset.c = c;
-            input.id = gridData[r][c].id;
             
-            // Load progress
-            const saved = localStorage.getItem(input.id);
+            // LocalStorage Restore
+            const saved = localStorage.getItem(`cell-${r}-${c}`);
             if (saved) {
                 input.value = saved;
-                validate(input);
+                validate(input, r, c);
             }
 
-            input.addEventListener('input', (e) => handleInput(e));
-            input.addEventListener('keydown', (e) => handleKey(e));
-            input.addEventListener('click', (e) => {
-                if (document.activeElement === input) {
-                    currentDir = currentDir === "A" ? "D" : "A";
-                }
-            });
-            cell.appendChild(input);
+            input.addEventListener('input', (e) => handleInput(e, r, c));
+            input.addEventListener('keydown', (e) => handleKeyDown(e, r, c));
+            input.addEventListener('click', (e) => handleClick(r, c));
+            
+            cellDiv.appendChild(input);
         }
-        gridEl.appendChild(cell);
+        board.appendChild(cellDiv);
     }
 }
 
-function handleInput(e) {
-    const input = e.target;
-    input.value = input.value.toUpperCase();
-    validate(input);
-    localStorage.setItem(input.id, input.value);
-    if (input.value) moveCursor(input, 1);
+// Populate Clues
+puzzleData.forEach((data, index) => {
+    const li = document.createElement('li');
+    li.className = 'clue-item';
+    li.innerText = `${index + 1}. ${data.clue}`;
+    li.onclick = () => focusWord(data);
+    document.getElementById(`${data.dir}-clues`).appendChild(li);
+});
+
+function handleInput(e, r, c) {
+    const val = e.target.value.toUpperCase();
+    e.target.value = val;
+    localStorage.setItem(`cell-${r}-${c}`, val);
+    validate(e.target, r, c);
+    if (val) moveFocus(r, c, 1);
     checkWin();
 }
 
-function handleKey(e) {
-    if (e.key === "Backspace" && !e.target.value) {
-        moveCursor(e.target, -1);
+function handleKeyDown(e, r, c) {
+    if (e.key === 'Backspace' && !e.target.value) {
+        moveFocus(r, c, -1);
     }
 }
 
-function validate(input) {
-    const r = input.dataset.r;
-    const c = input.dataset.c;
-    if (!input.value) {
+function handleClick(r, c) {
+    const prevDir = currentDir;
+    // Simple toggle logic: if user clicks same cell, switch direction
+    // Check if word exists in that direction
+    currentDir = (currentDir === 'across') ? 'down' : 'across';
+    highlightCell(r, c);
+}
+
+function validate(input, r, c) {
+    if (input.value === "") {
         input.parentElement.classList.remove('correct', 'wrong');
         return;
     }
-    const isCorrect = input.value === gridData[r][c].char;
-    input.parentElement.classList.toggle('correct', isCorrect);
-    input.parentElement.classList.toggle('wrong', !isCorrect);
+    if (input.value.toUpperCase() === grid[r][c].char) {
+        input.parentElement.classList.add('correct');
+        input.parentElement.classList.remove('wrong');
+    } else {
+        input.parentElement.classList.add('wrong');
+        input.parentElement.classList.remove('correct');
+    }
 }
 
-function moveCursor(input, step) {
-    let r = parseInt(input.dataset.r);
-    let c = parseInt(input.dataset.c);
-    let next;
-    if (currentDir === "A") c += step; else r += step;
-    next = document.getElementById(`cell-${r}-${c}`);
+function moveFocus(r, c, step) {
+    let nr = currentDir === 'down' ? r + step : r;
+    let nc = currentDir === 'across' ? c + step : c;
+    const next = document.querySelector(`input[data-r="${nr}"][data-c="${nc}"]`);
     if (next) next.focus();
 }
 
-function checkWin() {
-    const inputs = document.querySelectorAll('input');
-    const allCorrect = Array.from(inputs).every(i => i.value === gridData[i.dataset.r][i.dataset.c].char);
-    if (allCorrect) document.getElementById('win-message').style.display = 'block';
+function focusWord(data) {
+    currentDir = data.dir;
+    const input = document.querySelector(`input[data-r="${data.y}"][data-c="${data.x}"]`);
+    if (input) input.focus();
 }
 
-// Render Clues
-const aClues = document.getElementById('across-clues');
-const dClues = document.getElementById('down-clues');
-words.sort((a,b) => a.n - b.n).forEach(w => {
-    const item = document.createElement('div');
-    item.className = 'clue-item';
-    item.innerHTML = `<strong>${w.n}.</strong> ${w.clue}`;
-    item.onclick = () => {
-        currentDir = w.dir;
-        document.getElementById(`cell-${w.r}-${w.c}`).focus();
-    };
-    (w.dir === "A" ? aClues : dClues).appendChild(item);
-});
+function highlightCell(r, c) {
+    document.querySelectorAll('.cell').forEach(el => el.classList.remove('selected'));
+    const cell = document.querySelector(`input[data-r="${r}"][data-c="${c}"]`);
+    if (cell) cell.parentElement.classList.add('selected');
+}
+
+function checkWin() {
+    const inputs = document.querySelectorAll('.cell.active input');
+    let allCorrect = true;
+    inputs.forEach(input => {
+        const r = input.dataset.r;
+        const c = input.dataset.c;
+        if (input.value.toUpperCase() !== grid[r][c].char) allCorrect = false;
+    });
+
+    if (allCorrect) {
+        document.getElementById('win-message').style.display = 'block';
+    }
+}
 </script>
 </body>
 </html>
