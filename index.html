@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Custom Crossword</title>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <style>
+        :root {
+            --cell-size: 40px;
+            --correct-bg: #d4edda;
+            --wrong-bg: #f8d7da;
+            --selected-bg: #fff3cd;
+            --black-bg: #222;
+        }
+
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f4f4f9; display: flex; flex-direction: column; align-items: center; margin: 0; padding: 20px; }
+        
+        .container { display: flex; flex-direction: row; gap: 30px; max-width: 1000px; width: 100%; }
+        
+        @media (max-width: 800px) {
+            .container { flex-direction: column; }
+            :root { --cell-size: 8vw; }
+        }
+
+        .grid { display: grid; grid-template-columns: repeat(15, var(--cell-size)); grid-template-rows: repeat(15, var(--cell-size)); background: #000; border: 2px solid #000; }
+        
+        .cell { width: var(--cell-size); height: var(--cell-size); background: white; position: relative; display: flex; align-items: center; justify-content: center; border: 1px solid #ccc; box-sizing: border-box; }
+        
+        .cell.black { background: var(--black-bg); border: none; }
+        
+        .cell input { width: 100%; height: 100%; border: none; text-align: center; font-size: 1.2rem; font-weight: bold; text-transform: uppercase; background: transparent; cursor: pointer; }
+        
+        .cell input:focus { outline: none; background: var(--selected-bg); }
+
+        /* Color Logic */
+        .cell.correct { background-color: var(--correct-bg) !important; }
+        .cell.wrong { background-color: var(--wrong-bg) !important; }
+
+        .cell-num { position: absolute; top: 1px; left: 1px; font-size: 0.6rem; color: #555; pointer-events: none; }
+
+        .clues-section { flex: 1; display: flex; flex-direction: column; gap: 20px; }
+        .clue-list { background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); height: 300px; overflow-y: auto; }
+        .clue-item { cursor: pointer; padding: 5px; border-bottom: 1px solid #eee; font-size: 0.9rem; }
+        .clue-item:hover { background: #f0f0f0; }
+        .clue-item.active { background: #e7f3ff; font-weight: bold; }
+
+        h2 { margin-top: 0; border-bottom: 2px solid #333; }
+    </style>
+</head>
+<body>
+
+<div id="root"></div>
+
+<script type="text/babel">
+    const { useState, useEffect, useRef } = React;
+
+    // Grid Mapping based on your "Expanded" layout
+    // (A=Across, D=Down. Values are [row, col, length, answer])
+    const CLUES_DATA = {
+        across: [
+            { id: 1, r: 0, c: 0, ans: "LONDON", clue: "They say home is where the heart is, but that's not where his lived." },
+            { id: 2, r: 0, col: 10, ans: "MARCH", clue: "Beware the ides" },
+            { id: 3, r: 1, c: 5, ans: "RELAPSE", clue: "Your mother commonly did this when you were a child (unfortunately)" },
+            { id: 4, r: 2, c: 2, ans: "BRITISHAIRWAYS", clue: "\"To fly. To serve.\"" },
+            { id: 5, r: 4, c: 5, ans: "ALLENWRENCH", clue: "An L-shaped tool you're shocked I own" },
+            { id: 6, r: 5, c: 0, ans: "FRIDAYNIGHT", clue: "Our equivalent of Saturday night in Tel Aviv" },
+            { id: 7, r: 7, c: 2, ans: "KITTYKATPALACE", clue: "What probably comes to mind when you're stuck on the F line" },
+            { id: 8, r: 9, c: 0, ans: "TENNIS", clue: "Daddy's home for the first time in weeks..." },
+            { id: 9, r: 9, c: 7, ans: "RUMINATING", clue: "What a fucking line" },
+            { id: 10, r: 11, c: 2, ans: "SLEEPWALKING", clue: "Romance isn't dead?" },
+            { id: 11, r: 13, c: 3, ans: "NONMONOGAMY", clue: "People pleasing, perhaps?" },
+            { id: 12, r: 14, c: 6, ans: "TWENTYONE", clue: "The sum of eleven and ten; a significant age." }
+        ],
+        down: [
+            { id: 1, r: 0, c: 0, ans: "LILY", clue: "After my white dad died people gave us many of these [also in white] to express their sympathy (singular)" },
+            { id: 2, r: 5, c: 0, ans: "FRUITLOOPS", clue: "Many a 90s child favorite sugary breakfast" },
+            { id: 3, r: 1, c: 5, ans: "WESTEND", clue: "You're deranged?" },
+            { id: 4, r: 0, c: 14, ans: "NEWARK", clue: "Confused with New York Penn Station on the NE Cooridor when pronounced too quickly" },
+            { id: 5, r: 8, c: 10, ans: "EVENING", clue: "That time of day betwen the afternoon and the night. Don't overthink it." },
+            { id: 6, r: 6, c: 5, ans: "MISTLETOE", clue: "If you looked up and it was there, we'd for sure makeout" },
+            { id: 7, r: 11, c: 6, ans: "GIFT", clue: "That pillow you found under the christmas tree recently" },
+            { id: 8, r: 2, c: 14, ans: "PILOT", clue: "The person you should actually tell to \"have a safe flight\"" },
+            { id: 9, r: 0, c: 10, ans: "ELVES", clue: "Tiny little lads in the north pole" }
+        ]
+    };
+
+    const Crossword = () => {
+        const rows = 15;
+        const cols = 15;
+        
+        // Initialize Grid
+        const createEmptyGrid = () => Array(rows).fill().map(() => Array(cols).fill(null));
+        const solutionGrid = createEmptyGrid();
+        
+        // Fill solution for validation
+        [...CLUES_DATA.across, ...CLUES_DATA.down].forEach(word => {
+            let r = word.r, c = word.c || word.col;
+            for (let i = 0; i < word.ans.length; i++) {
+                solutionGrid[r][c] = word.ans[i];
+                if (CLUES_DATA.across.includes(word)) c++; else r++;
+            }
+        });
+
+        const [grid, setGrid] = useState(() => {
+            const saved = localStorage.getItem('crosswordProgress');
+            return saved ? JSON.parse(saved) : createEmptyGrid();
+        });
+        
+        const [dir, setDir] = useState('across'); // 'across' or 'down'
+
+        useEffect(() => {
+            localStorage.setItem('crosswordProgress', JSON.stringify(grid));
+        }, [grid]);
+
+        const handleChange = (r, c, val) => {
+            const newGrid = [...grid];
+            const char = val.slice(-1).toUpperCase();
+            newGrid[r][c] = char === "" ? null : char;
+            setGrid(newGrid);
+
+            // Auto-advance logic
+            if (char !== "") {
+                const nextField = document.querySelector(`input[data-pos="${dir === 'across' ? r + '-' + (c + 1) : (r + 1) + '-' + c}"]`);
+                if (nextField) nextField.focus();
+            }
+        };
+
+        const handleKeyDown = (e, r, c) => {
+            if (e.key === "Backspace" && !grid[r][c]) {
+                const prevField = document.querySelector(`input[data-pos="${dir === 'across' ? r + '-' + (c - 1) : (r - 1) + '-' + c}"]`);
+                if (prevField) prevField.focus();
+            }
+        };
+
+        const toggleDir = () => setDir(dir === 'across' ? 'down' : 'across');
+
+        return (
+            <div className="container">
+                <div className="grid">
+                    {grid.map((row, r) => row.map((cell, c) => {
+                        const isBlack = solutionGrid[r][c] === null;
+                        const isCorrect = grid[r][c] === solutionGrid[r][c];
+                        const isWrong = grid[r][c] !== null && grid[r][c] !== solutionGrid[r][c];
+                        
+                        return (
+                            <div key={`${r}-${c}`} className={`cell ${isBlack ? 'black' : ''} ${isCorrect ? 'correct' : ''} ${isWrong ? 'wrong' : ''}`}>
+                                {!isBlack && (
+                                    <input 
+                                        data-pos={`${r}-${c}`}
+                                        maxLength="1"
+                                        value={grid[r][c] || ''}
+                                        onClick={(e) => { if(e.detail === 2) toggleDir(); }}
+                                        onChange={(e) => handleChange(r, c, e.target.value)}
+                                        onKeyDown={(e) => handleKeyDown(e, r, c)}
+                                    />
+                                )}
+                            </div>
+                        );
+                    }))}
+                </div>
+
+                <div className="clues-section">
+                    <div className="clue-list">
+                        <h2>Across</h2>
+                        {CLUES_DATA.across.map(clue => (
+                            <div key={clue.id} className="clue-item" onClick={() => setDir('across')}>
+                                <strong>{clue.id}.</strong> {clue.clue}
+                            </div>
+                        ))}
+                    </div>
+                    <div className="clue-list">
+                        <h2>Down</h2>
+                        {CLUES_DATA.down.map(clue => (
+                            <div key={clue.id} className="clue-item" onClick={() => setDir('down')}>
+                                <strong>{clue.id}.</strong> {clue.clue}
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </div>
+        );
+    };
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<Crossword />);
+</script>
+
+</body>
+</html>
