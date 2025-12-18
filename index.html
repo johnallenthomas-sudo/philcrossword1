@@ -3,199 +3,210 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Our Personal Crossword</title>
-    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <title>Surprise Crossword</title>
     <style>
         :root {
-            --cell-size: 55px;
-            --correct-bg: #d4edda;
-            --wrong-bg: #f8d7da;
-            --selected-bg: #fff3cd;
-            --special-border: #ff0000;
-            --standard-border: #333;
+            --cell-size: 40px;
+            --highlight: #fff9c4; /* Yellow for special words */
+            --correct: #c8e6c9;
+            --wrong: #ffcdd2;
         }
 
-        body { font-family: -apple-system, sans-serif; background: #fdfdfd; display: flex; flex-direction: column; align-items: center; padding: 20px; margin: 0; }
-        .container { display: flex; flex-direction: row; gap: 40px; max-width: 1300px; width: 100%; justify-content: center; }
+        body { font-family: sans-serif; display: flex; flex-direction: column; align-items: center; background: #f0f0f0; padding: 20px; }
+        .container { display: flex; flex-wrap: wrap; gap: 20px; justify-content: center; max-width: 1000px; }
         
-        @media (max-width: 1000px) {
-            .container { flex-direction: column; align-items: center; }
-            :root { --cell-size: 8.5vw; }
+        /* Grid Styles */
+        #grid { 
+            display: grid; 
+            grid-template-columns: repeat(15, var(--cell-size)); 
+            grid-template-rows: repeat(15, var(--cell-size)); 
+            gap: 1px; background: #000; border: 2px solid #000;
+        }
+        .cell { 
+            width: var(--cell-size); height: var(--cell-size); 
+            background: white; position: relative; 
+        }
+        .cell.black { background: #000; }
+        .cell input {
+            width: 100%; height: 100%; border: none; text-align: center;
+            font-size: 18px; font-weight: bold; text-transform: uppercase;
+            background: transparent; outline: none;
+        }
+        .cell.special { background: var(--highlight); }
+        .cell.correct { background: var(--correct) !important; }
+        .cell.wrong { background: var(--wrong) !important; }
+        
+        .clue-number {
+            position: absolute; top: 1px; left: 2px; font-size: 10px; color: #555;
         }
 
-        .grid-container { position: relative; }
-        .grid { display: grid; grid-template-columns: repeat(11, var(--cell-size)); grid-template-rows: repeat(8, var(--cell-size)); background: #000; border: 4px solid #000; }
-        
-        .cell { width: var(--cell-size); height: var(--cell-size); background: white; position: relative; border: 1px solid var(--standard-border); box-sizing: border-box; }
-        .cell.black { background: #000; border: none; }
-        .cell.special-word { border: 2.5px solid var(--special-border); z-index: 5; }
-        
-        .cell input { width: 100%; height: 100%; border: none; text-align: center; font-size: 1.4rem; font-weight: bold; text-transform: uppercase; background: transparent; cursor: pointer; caret-color: transparent; }
-        .cell input:focus { outline: none; background: var(--selected-bg); }
-        .cell.correct { background-color: var(--correct-bg) !important; }
-        .cell.wrong { background-color: var(--wrong-bg) !important; }
+        /* Sidebar */
+        .clues { width: 300px; max-height: 600px; overflow-y: auto; background: white; padding: 15px; border-radius: 8px; }
+        .clue-item { cursor: pointer; padding: 4px; border-bottom: 1px solid #eee; }
+        .clue-item:hover { background: #f0f0f0; }
 
-        .cell-num { position: absolute; top: 2px; left: 3px; font-size: 0.7rem; font-weight: bold; color: #000; pointer-events: none; z-index: 10; }
+        #win-message {
+            display: none; margin-top: 20px; padding: 20px;
+            background: #4caf50; color: white; border-radius: 8px;
+            text-align: center; font-size: 1.2rem; font-weight: bold;
+        }
 
-        .clues-section { flex: 1; display: flex; flex-direction: column; gap: 20px; max-width: 450px; height: 80vh; overflow-y: auto; padding-right: 10px; }
-        .clue-group { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.08); margin-bottom: 20px; }
-        .clue-item { margin-bottom: 12px; cursor: pointer; font-size: 0.95rem; line-height: 1.4; padding: 4px; border-radius: 4px; }
-        .clue-item.special { color: var(--special-border); font-weight: bold; }
-        .clue-item:hover { background: #f0f7ff; }
-
-        .win-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); display: flex; align-items: center; justify-content: center; z-index: 1000; }
-        .win-modal { background: white; padding: 40px; border-radius: 20px; text-align: center; }
-        button { background: #28a745; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-size: 1rem; margin-top: 15px; }
+        @media (max-width: 600px) {
+            :root { --cell-size: 24px; }
+            .clues { width: 100%; }
+        }
     </style>
 </head>
 <body>
 
-<div id="root"></div>
+    <h1>A Special Puzzle</h1>
 
-<script type="text/babel">
-    const { useState, useEffect } = React;
+    <div class="container">
+        <div id="grid"></div>
+        <div class="clues">
+            <h3>Clues</h3>
+            <div><strong>Across</strong><div id="across-clues"></div></div>
+            <br>
+            <div><strong>Down</strong><div id="down-clues"></div></div>
+        </div>
+    </div>
 
-    const CLUES_DATA = {
-        across: [
-            { id: 1, r: 0, c: 1, ans: "LONDON", isSpecial: true, clue: "1: They say home is where the heart is, but that's not where his lived." },
-            { id: 3, r: 0, c: 5, ans: "MARCH", isSpecial: true, clue: "3: Beware the ides" },
-            { id: 2, r: 1, c: 0, ans: "RELAPSE", isSpecial: false, clue: "2: Your mother commonly did this when you were a child (unfortunately)" },
-            { id: 3, r: 2, c: 0, ans: "BRITISHAIRWAYS", isSpecial: false, clue: "3 (Row 3): \"To fly. To serve.\"" },
-            { id: 8, r: 2, c: 3, ans: "ALLENWRENCH", isSpecial: true, clue: "8: An L-shaped tool you're shocked I own" },
-            { id: 6, r: 3, c: 0, ans: "FRIDAYNIGHT", isSpecial: false, clue: "6: Our equivalent of Saturday night in Tel Aviv" },
-            { id: 7, r: 3, c: 2, ans: "KITTYKATPALACE", isSpecial: false, clue: "7: What probably comes to mind when you're stuck on the F line" },
-            { id: 10, r: 3, c: 7, ans: "RUMINATING", isSpecial: false, clue: "10: What a fucking line" },
-            { id: 8, r: 4, c: 0, ans: "TENNIS", isSpecial: false, clue: "8 (Row 5): Daddy's home for the first time in weeks..." },
-            { id: 12, r: 4, c: 6, ans: "EVENING", isSpecial: false, clue: "12: That time of day betwen the afternoon and the night. Don't overthink it." },
-            { id: 10, r: 5, c: 3, ans: "SLEEPWALKING", isSpecial: false, clue: "10 (Row 6): Romance isn't dead?" },
-            { id: 14, r: 5, c: 8, ans: "STAGE", isSpecial: false, clue: "14: Shakespeare said the entire world was one of these" },
-            { id: 11, r: 6, c: 0, ans: "NONMONOGAMY", isSpecial: false, clue: "11: People pleasing, perhaps?" },
-            { id: 12, r: 6, c: 7, ans: "SONG", isSpecial: false, clue: "12 (Row 7): A general way to describe the answer to a handful of clues in this puzzle" },
-            { id: 15, r: 7, c: 0, ans: "TWENTYONE", isSpecial: true, clue: "15: The sum of eleven and ten; a significant age." }
-        ],
-        down: [
-            { id: 1, r: 0, c: 1, ans: "LILY", isSpecial: true, clue: "1: After my white dad died people gave us many of these [also in white] to express their sympathy (singular)" },
-            { id: 3, r: 0, c: 3, ans: "ALLEN", isSpecial: true, clue: "3: An L-shaped tool you're shocked I own" },
-            { id: 3, r: 0, c: 5, ans: "FRUITLOOPS", isSpecial: false, clue: "3 (Col 6): Many a 90s child favorite sugary breakfast" },
-            { id: 4, r: 0, c: 8, ans: "NEWARK", isSpecial: false, clue: "4: Confused with New York Penn Station on the NE Cooridor when pronounced too quickly" },
-            { id: 11, r: 1, c: 10, ans: "WESTEND", isSpecial: false, clue: "11: You're deranged?" },
-            { id: 14, r: 2, c: 9, ans: "MISTLETOE", isSpecial: false, clue: "14: If you looked up and it was there, we'd for sure makeout" },
-            { id: 13, r: 4, c: 4, ans: "GIFT", isSpecial: false, clue: "13: That pillow you found under the christmas tree recently" },
-            { id: 10, r: 7, c: 6, ans: "PILOT", isSpecial: false, clue: "10: The person you should actually tell to \"have a safe flight\"" },
-            { id: 15, r: 7, c: 9, ans: "ELVES", isSpecial: false, clue: "15: Tiny little lads in the north pole" }
-        ]
-    };
+    <div id="win-message">
+        You win! We’re going to see Lily Allen in London for a 36 hour whirlwind trip to London on March 21!
+    </div>
 
-    const GRID_TEMPLATE = [
-        ['#', '1', ' ', '3', '#', '3', ' ', '#', '4', '#', '#'],
-        ['2', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', '#', '11'],
-        ['3', ' ', '#', '8', ' ', ' ', ' ', ' ', '#', '14', ' '],
-        ['6', '#', '7', ' ', '#', ' ', '#', '10', ' ', ' ', ' '],
-        ['8', ' ', ' ', '#', '13', '#', '12', ' ', '#', '#', ' '],
-        ['#', ' ', '#', '10', ' ', ' ', ' ', '#', '14', ' ', ' '],
-        ['11', ' ', ' ', ' ', ' ', ' ', '#', '12', ' ', ' ', '#'],
-        ['15', '#', ' ', ' ', ' ', '#', '10', ' ', '#', '15', '#']
-    ];
+<script>
+// Grid data: row, col, char, special(bool), clue#
+const words = [
+    {word: "LILY", r: 0, c: 0, dir: "A", clue: "A type of flower (Key)", special: true, n: 1},
+    {word: "NEWARK", r: 0, c: 5, dir: "A", clue: "A major NJ airport", n: 4},
+    {word: "FRUITLOOPS", r: 2, c: 0, dir: "A", clue: "Colorful breakfast cereal", n: 8},
+    {word: "STAGE", r: 4, c: 0, dir: "A", clue: "Where actors perform", n: 10},
+    {word: "LONDON", r: 4, c: 6, dir: "A", clue: "England's capital (Key)", special: true, n: 11},
+    {word: "GIFT", r: 6, c: 0, dir: "A", clue: "Something given on a birthday", n: 13},
+    {word: "PILOT", r: 6, c: 5, dir: "A", clue: "They fly the plane", n: 14},
+    {word: "MARCH", r: 8, c: 0, dir: "A", clue: "The third month (Key)", special: true, n: 15},
+    {word: "TENNIS", r: 10, c: 0, dir: "A", clue: "Sport played with a racket", n: 16},
+    {word: "ELVES", r: 12, c: 0, dir: "A", clue: "Santa's helpers", n: 17},
+    {word: "ALLENWRENCH", r: 0, c: 0, dir: "D", clue: "L-shaped tool (Key)", special: true, n: 2},
+    {word: "TWENTYONE", r: 0, c: 10, dir: "D", clue: "Three times seven (Key)", special: true, n: 3},
+    {word: "BRITISHAIRWAYS", r: 0, c: 12, dir: "D", clue: "Major UK airline", n: 5},
+    {word: "FRIDAYNIGHT", r: 0, c: 14, dir: "D", clue: "Start of the weekend", n: 6},
+    {word: "KITTYKATPALACE", r: 2, c: 2, dir: "D", clue: "A fancy home for a feline", n: 7},
+    {word: "SLEEPWALKING", r: 2, c: 4, dir: "D", clue: "Moving while dreaming", n: 9},
+    {word: "NONMONOGAMY", r: 4, c: 8, dir: "D", clue: "Relationship style", n: 12},
+    {word: "RUMINATING", r: 5, c: 6, dir: "D", clue: "Thinking deeply or obsessively", n: 14},
+    {word: "RELAPSE", r: 6, c: 0, dir: "D", clue: "A setback in recovery", n: 13},
+    {word: "WESTEND", r: 8, c: 10, dir: "D", clue: "London's theater district", n: 18},
+    {word: "EVENING", r: 8, c: 2, dir: "D", clue: "Time after sunset", n: 19},
+    {word: "SONG", r: 11, c: 4, dir: "D", clue: "A musical composition", n: 20},
+    {word: "MISTLETOE", r: 6, c: 14, dir: "D", clue: "Kiss underneath this", n: 21}
+];
 
-    const Crossword = () => {
-        const [grid, setGrid] = useState(() => {
-            const saved = localStorage.getItem('puzzle_save');
-            return saved ? JSON.parse(saved) : Array(8).fill().map(() => Array(11).fill(''));
-        });
-        const [dir, setDir] = useState('A');
+const gridSize = 15;
+const gridData = Array(gridSize).fill().map(() => Array(gridSize).fill(null));
+let currentDir = "A";
 
-        const solutionGrid = Array(8).fill().map(() => Array(11).fill(null));
-        [...CLUES_DATA.across, ...CLUES_DATA.down].forEach(w => {
-            for (let i = 0; i < w.ans.length; i++) {
-                let r = w.r + (CLUES_DATA.down.includes(w) ? i : 0);
-                let c = w.c + (CLUES_DATA.across.includes(w) ? i : 0);
-                if (r < 8 && c < 11) solutionGrid[r][c] = w.ans[i];
+// Build Grid Model
+words.forEach(w => {
+    for (let i = 0; i < w.word.length; i++) {
+        let r = w.dir === "A" ? w.r : w.r + i;
+        let c = w.dir === "A" ? w.c + i : w.c;
+        if (!gridData[r][c]) gridData[r][c] = { char: w.word[i], special: false, n: null, id: `cell-${r}-${c}` };
+        if (w.special) gridData[r][c].special = true;
+        if (i === 0) gridData[r][c].n = w.n;
+    }
+});
+
+// Render Grid
+const gridEl = document.getElementById('grid');
+for (let r = 0; r < gridSize; r++) {
+    for (let c = 0; c < gridSize; c++) {
+        const cell = document.createElement('div');
+        cell.className = 'cell' + (gridData[r][c] ? '' : ' black') + (gridData[r][c]?.special ? ' special' : '');
+        if (gridData[r][c]) {
+            if (gridData[r][c].n) cell.innerHTML = `<span class="clue-number">${gridData[r][c].n}</span>`;
+            const input = document.createElement('input');
+            input.maxLength = 1;
+            input.dataset.r = r;
+            input.dataset.c = c;
+            input.id = gridData[r][c].id;
+            
+            // Load progress
+            const saved = localStorage.getItem(input.id);
+            if (saved) {
+                input.value = saved;
+                validate(input);
             }
-        });
 
-        useEffect(() => {
-            localStorage.setItem('puzzle_save', JSON.stringify(grid));
-            const isFinished = solutionGrid.every((row, r) => row.every((char, c) => !char || grid[r][c] === char));
-            if (isFinished && grid.flat().join('').length > 50) setWin(true);
-        }, [grid]);
-
-        const [win, setWin] = useState(false);
-
-        const isSpecialCell = (r, c) => {
-            return [...CLUES_DATA.across, ...CLUES_DATA.down].some(w => {
-                if (!w.isSpecial) return false;
-                const isAcross = CLUES_DATA.across.includes(w);
-                if (isAcross) return r === w.r && c >= w.c && c < w.c + w.ans.length;
-                return c === w.c && r >= w.r && r < w.r + w.ans.length;
+            input.addEventListener('input', (e) => handleInput(e));
+            input.addEventListener('keydown', (e) => handleKey(e));
+            input.addEventListener('click', (e) => {
+                if (document.activeElement === input) {
+                    currentDir = currentDir === "A" ? "D" : "A";
+                }
             });
-        };
+            cell.appendChild(input);
+        }
+        gridEl.appendChild(cell);
+    }
+}
 
-        const handleInput = (r, c, val) => {
-            const newGrid = [...grid];
-            const char = val.slice(-1).toUpperCase();
-            newGrid[r][c] = char;
-            setGrid(newGrid);
+function handleInput(e) {
+    const input = e.target;
+    input.value = input.value.toUpperCase();
+    validate(input);
+    localStorage.setItem(input.id, input.value);
+    if (input.value) moveCursor(input, 1);
+    checkWin();
+}
 
-            if (char) {
-                const next = document.querySelector(`input[data-p="${dir === 'A' ? r + '-' + (c + 1) : (r + 1) + '-' + c}"]`);
-                if (next) next.focus();
-            }
-        };
+function handleKey(e) {
+    if (e.key === "Backspace" && !e.target.value) {
+        moveCursor(e.target, -1);
+    }
+}
 
-        return (
-            <div className="container">
-                {win && <div className="win-overlay"><div className="win-modal"><h2>You Won! 🎉</h2><button onClick={() => setWin(false)}>Close</button></div></div>}
-                <div className="grid-container">
-                    <div className="grid">
-                        {GRID_TEMPLATE.map((row, r) => row.map((num, c) => {
-                            const isBlack = num === '#';
-                            const special = isSpecialCell(r, c);
-                            const correct = grid[r][c] && grid[r][c] === solutionGrid[r][c];
-                            const wrong = grid[r][c] && grid[r][c] !== solutionGrid[r][c];
-                            return (
-                                <div key={`${r}-${c}`} className={`cell ${isBlack ? 'black' : ''} ${special ? 'special-word' : ''} ${correct ? 'correct' : ''} ${wrong ? 'wrong' : ''}`}>
-                                    {!isBlack && (
-                                        <>
-                                            {parseInt(num) > 0 && <span className="cell-num">{num}</span>}
-                                            <input 
-                                                data-p={`${r}-${c}`}
-                                                value={grid[r][c]} 
-                                                onClick={() => setDir(dir === 'A' ? 'D' : 'A')}
-                                                onChange={(e) => handleInput(r, c, e.target.value)} 
-                                            />
-                                        </>
-                                    )}
-                                </div>
-                            );
-                        }))}
-                    </div>
-                </div>
-                <div className="clues-section">
-                    <div className="clue-group">
-                        <h3>Across (Up Orientation)</h3>
-                        {CLUES_DATA.across.map(clue => (
-                            <div key={clue.ans + clue.r} className={`clue-item ${clue.isSpecial ? 'special' : ''}`} onClick={() => setDir('A')}>
-                                {clue.clue}
-                            </div>
-                        ))}
-                    </div>
-                    <div className="clue-group">
-                        <h3>Down</h3>
-                        {CLUES_DATA.down.map(clue => (
-                            <div key={clue.ans + clue.r} className={`clue-item ${clue.isSpecial ? 'special' : ''}`} onClick={() => setDir('D')}>
-                                {clue.clue}
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            </div>
-        );
+function validate(input) {
+    const r = input.dataset.r;
+    const c = input.dataset.c;
+    if (!input.value) {
+        input.parentElement.classList.remove('correct', 'wrong');
+        return;
+    }
+    const isCorrect = input.value === gridData[r][c].char;
+    input.parentElement.classList.toggle('correct', isCorrect);
+    input.parentElement.classList.toggle('wrong', !isCorrect);
+}
+
+function moveCursor(input, step) {
+    let r = parseInt(input.dataset.r);
+    let c = parseInt(input.dataset.c);
+    let next;
+    if (currentDir === "A") c += step; else r += step;
+    next = document.getElementById(`cell-${r}-${c}`);
+    if (next) next.focus();
+}
+
+function checkWin() {
+    const inputs = document.querySelectorAll('input');
+    const allCorrect = Array.from(inputs).every(i => i.value === gridData[i.dataset.r][i.dataset.c].char);
+    if (allCorrect) document.getElementById('win-message').style.display = 'block';
+}
+
+// Render Clues
+const aClues = document.getElementById('across-clues');
+const dClues = document.getElementById('down-clues');
+words.sort((a,b) => a.n - b.n).forEach(w => {
+    const item = document.createElement('div');
+    item.className = 'clue-item';
+    item.innerHTML = `<strong>${w.n}.</strong> ${w.clue}`;
+    item.onclick = () => {
+        currentDir = w.dir;
+        document.getElementById(`cell-${w.r}-${w.c}`).focus();
     };
-
-    const root = ReactDOM.createRoot(document.getElementById('root'));
-    root.render(<Crossword />);
+    (w.dir === "A" ? aClues : dClues).appendChild(item);
+});
 </script>
 </body>
 </html>
